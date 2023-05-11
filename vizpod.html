@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>US States GeoJSON with D3.js</title>
+    <style>
+      .axis text {
+        font-size: 10px;
+      }
+      #barChart .x-axis path {
+        stroke-width: 2px;
+      }
+
+      #barChart {
+        background-color: lightgray;
+      }
+      .axis path,
+      .axis line {
+        fill: none;
+        stroke: #000;
+        shape-rendering: crispEdges;
+      }
+
+      #barChart .state-name {
+        fill: black;
+        text-anchor: middle;
+      }
+    </style>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+  </head>
+  <body>
+    <svg id="map" width="1000" height="600"></svg>
+    <svg id="barChart" width="500" height="350"></svg>
+    <script>
+      const svg = d3.select("#map");
+      const barChartSvg = d3.select("#barChart");
+
+      const projection = d3.geoAlbersUsa();
+      const path = d3.geoPath(projection);
+
+      const url = "us-states.json";
+      const barChartWidth = 400;
+      const barChartHeight = 200;
+      const barPadding = 2;
+
+      // Define the color scale
+      const colorScale = d3
+        .scaleLinear()
+        .domain([0, 200]) // Define the range of density values
+        .range(["lightblue", "steelblue"]); // Define the corresponding color range
+
+      // Define the density scale
+      const densityScale = d3.scaleLinear().range([barChartHeight, 0]);
+
+      const barChart = barChartSvg.append("g").attr("transform", `translate(50, 50)`);
+
+      d3.json(url).then(function (json) {
+        // Add a light gray background color to the map
+        svg
+          .append("rect")
+          .attr("width", "100%")
+          .attr("height", "100%")
+          .attr("fill", "lightgray");
+
+        svg
+          .selectAll("path")
+          .data(json.features)
+          .enter()
+          .append("path")
+          .attr("d", path)
+          .attr("fill", function (d) {
+            const density = d.properties.density;
+            return colorScale(density);
+          })
+          .attr("stroke", "white") // Set stroke color to white for state lines
+          .attr("data-state", function (d) {
+            return d.properties.name;
+          })
+          .on("click", function (event, d) {
+            const clickedState = d3.select(this);
+            const currentState = clickedState.attr("data-state");
+
+            if (selectedStates.includes(currentState)) {
+              // If state is already selected, remove it from the array
+              selectedStates.splice(selectedStates.indexOf(currentState), 1);
+            } else {
+              // If state is not selected, add it to the array
+              selectedStates.push(currentState);
+            }
+
+            svg
+              .selectAll("path")
+              .attr("fill", function (d) {
+                const density = d.properties.density;
+                return selectedStates.includes(d.properties.name) ? colorScale(density) : "gray";
+              });
+
+            updateBarChart(selectedStates, json);
+          });
+      });
+
+      const selectedStates = [];
+      function updateBarChart(selectedStates, json) {
+  // Check if there are no selected states
+  if (selectedStates.length === 0) {
+    // Remove the bar chart elements
+    barChart.selectAll("rect").remove();
+    barChartSvg.select(".x-axis").remove();
+    barChartSvg.select(".y-axis").remove();
+    barChartSvg.selectAll(".state-name").remove();
+    barChartSvg.selectAll(".density-value").remove();
+    return; // Exit the function
+  }
+
+  // Filter the data to include only the selected states
+  const selectedData = json.features.filter(function (d) {
+    return selectedStates.includes(d.properties.name);
+  });
+
+  // Update the domain of the density scale based on the selected data
+  densityScale.domain([0, d3.max(selectedData, (d) => d.properties.density)]);
+
+  // Bind the selected data to the bar chart bars
+  const bars = barChart.selectAll("rect").data(selectedData);
+
+  // Exit
+  bars.exit().remove();
+
+  // Enter + Update
+  bars.enter()
+    .append("rect")
+    .merge(bars)
+    .attr("x", (d, i) => i * (barChartWidth / selectedData.length))
+    .attr("y", (d) => densityScale(d.properties.density))
+    .attr("width", barChartWidth / selectedData.length - barPadding)
+    .attr("height", (d) => barChartHeight - densityScale(d.properties.density))
+    .attr("fill", "steelblue");
+
+  // Update the x-axis (state names)
+  const xScale = d3
+    .scaleBand()
+    .domain(selectedData.map((d) => d.properties.name))
+    .range([0, barChartWidth])
+    .padding(0.1);
+
+  // Update the x-axis (state names)
+  const xAxis = d3.axisBottom(xScale);
+  barChartSvg.select(".x-axis").remove();
+  barChartSvg
+    .append("g")
+    .attr("class", "x-axis")
+    .attr("transform", `translate(50, ${barChartHeight + 50})`)
+    .call(xAxis)
+    .selectAll("text")
+    .attr("text-anchor", "end")
+    .attr("dx", "-.8em")
+    .attr("dy", ".15em")
+    .attr("transform", "rotate(-45)");
+
+  // Update the y-axis (density values)
+  const yAxis = d3.axisLeft(densityScale).ticks(5);
+  barChartSvg.select(".y-axis").remove();
+  barChartSvg
+    .append("g")
+    .attr("class", "y-axis")
+    .attr("transform", `translate(50, 50)`)
+    .call(yAxis);
+
+  // Remove the state names
+  barChartSvg.selectAll(".state-name").remove();
+
+  // Create a group for the density values
+  const densityValues = barChartSvg.selectAll(".density-value").data(selectedData, (d) => d.properties.name);
+  densityValues.exit().remove();
+
+  densityValues
+  .enter()
+  .append("text")
+  .merge(densityValues)
+  .attr("class", "density-value")
+  .attr("x", (d, i) => i * (barChartWidth / selectedData.length) + (barChartWidth / selectedData.length) / 2+ 50)
+  .attr("y", (d) => densityScale(d.properties.density) +40) // Adjust the vertical position
+  .text((d) => d.properties.density)
+  .attr("fill", "black")
+  .attr("font-size", "10px")
+  .attr("text-anchor", "middle")
+ 
+
+
+
+      }
+    </script>
+  </body>
+</html>
