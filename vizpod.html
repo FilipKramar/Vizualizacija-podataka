@@ -1,193 +1,956 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <title>US States GeoJSON with D3.js</title>
-    <style>
-      .axis text {
-        font-size: 10px;
-      }
-      #barChart .x-axis path {
-        stroke-width: 2px;
-      }
+<head>
+  <title>Pozz UwU</title>
+  <style>.container {
+    position: relative;
+    width: 100%;
+    padding-bottom: 60%;
+  }
 
-      #barChart {
-        background-color: lightgray;
-      }
-      .axis path,
-      .axis line {
-        fill: none;
-        stroke: #000;
-        shape-rendering: crispEdges;
-      }
+  .container svg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+  }
 
-      #barChart .state-name {
-        fill: black;
-        text-anchor: middle;
-      }
-    </style>
-    <script src="https://d3js.org/d3.v7.min.js"></script>
-  </head>
-  <body>
-    <svg id="map" width="1000" height="600"></svg>
-    <svg id="barChart" width="500" height="350"></svg>
+  .axis text {
+    font-size: 10px;
+  }
+
+  #barChart .x-axis path {
+    stroke-width: 2px;
+  }
+
+  #barChart {
+    background-color: lightgray;
+  }
+
+  .axis path,
+  .axis line {
+    fill: none;
+    stroke: #000;
+    shape-rendering: crispEdges;
+  }
+
+  #barChart .state-name {
+    fill: black;
+    text-anchor: middle;
+  }
+
+  #legendContainer {
+    margin-top: 20px;
+    display: flex;
+    justify-content: center;
+  }
+
+  .legend-item {
+    display: inline-block;
+    margin-right: 10px;
+  }
+
+  .dropdown-menu {
+    display: none;
+  }
+
+  .dropdown-menu li.default a.dropdown-link:not(.active) {
+    color: black !important;
+  }
+
+  .dropdown-menu.active {
+    display: block;
+    background-color: #f0f0f0;
+    font-weight: bold;
+    color: yellow;
+  }
+
+  #map {
+    width: 100%;
+    max-width: 1000px;
+    height: auto;
+    display: none;
+    padding: 20px;
+  }
+
+  #burgermap {
+    width: 100%;
+    max-width: 1000px;
+    height: auto;
+    display: none;
+    padding: 20px;
+  }
+
+  #kfcmap {
+    width: 100%;
+    max-width: 1000px;
+    height: auto;
+    display: none;
+    padding: 20px;
+  }
+
+  #barChartContainer {
+width: 100%;
+max-width: 1000px;
+margin: 0 ;
+padding: 20px;
+}
+
+#legendContainer {
+width: 100%;
+max-width: 1000px;
+margin: 0;
+padding: 20px;
+}
+
+#barChart svg {
+width: 100%;
+height: auto;
+}
+
+#legend {
+margin-top: 20px;
+display: flex;
+justify-content: center;
+}
+.y-axis-label {
+  fill: black;
+}
+
+
+
+#legend .legend-item {
+display: inline-block;
+margin-right: 10px;
+}
+</style>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+</head>
+<body onload="createCheckboxMenu()">
+  <div class="dropdown">
+    <button class="dropdown-toggle" id="dropdownButton">Select a fast food chain</button>
+    <ul class="dropdown-menu" id="dropdownMenu">
+      <li><a href="#" onclick="optionClicked(1)">Taco Bell</a></li>
+      <li><a href="#" onclick="optionClicked(2)">Burger King</a></li>
+      <li><a href="#" onclick="optionClicked(3)">KFC</a></li>
+    </ul>
+  </div>
+
+  <svg id="map" width="1000" height="600" style="display: none;"></svg>
+  <svg id="burgermap"width="1000" height="600" style="display: none;"></svg>
+  <svg id="kfcmap" width="1000" height="600" style="display: none;"></svg>
+  <div id="checkbox-container"></div>
+
+  <div id="barChartContainer"></div>
+
+  <div id="legendContainer"></div>
+
     <script>
-      const svg = d3.select("#map");
-      const barChartSvg = d3.select("#barChart");
+     
+      const barChartContainer = d3.select("#barChartContainer");
+      const legendContainer = d3.select("#legendContainer");
 
       const projection = d3.geoAlbersUsa();
       const path = d3.geoPath(projection);
 
       const url = "us-states.json";
-      const barChartWidth = 400;
-      const barChartHeight = 200;
+      const barChartWidth = 1350;
+      const barChartHeight = 700;
       const barPadding = 2;
 
-      // Define the color scale
-      const colorScale = d3
-        .scaleLinear()
-        .domain([0, 200]) // Define the range of density values
-        .range(["lightblue", "steelblue"]); // Define the corresponding color range
+      const attributeColorScale = d3
+        .scaleOrdinal()
+        .domain(["CashierTacoBell", "ManagerTacoBell", "KitchenMember"])
+        .range(["#CDB4DB", "#9C8CB9", "#7B6C9E"]);
 
-      // Define the density scale
-      const densityScale = d3.scaleLinear().range([barChartHeight, 0]);
+        const attributeColorScaleBurgerKing = d3
+  .scaleOrdinal()
+  .domain(["BurgerKingManager", "CookBurgerKing", "CashierBurgerKing"])
+  .range(["lightblue", "#4682B4", "navy"]);
+
+  const attributeColorKfc = d3
+  .scaleOrdinal()
+  .domain(["KFCManager", "CookKFC", "CashierKFC"])
+  .range(["#FFB3B3", "#FF6666", "#FF3333"]);
+
+
+      const barChartSvg = barChartContainer
+        .append("svg")
+        .attr("id", "barChart")
+        .attr("width", 1500)
+        .attr("height", 850);
+
+
+
+      const legendData = [
+        { role: "Taco Bell Cashier", color: attributeColorScale(0) },
+        { role: "Taco Bell Shift Manager", color: attributeColorScale(1) },
+        { role: "Taco bell Kitchen Member ", color: attributeColorScale(2)},
+        {role:"Burger King Manager", color:attributeColorScaleBurgerKing(0)},
+        {role:  "Burger King Cook",color:attributeColorScaleBurgerKing(1)},
+        {role:"Burger King Cashier",color:attributeColorScaleBurgerKing(2)},
+        {role:"KFC Shift Manager", color:attributeColorKfc(0)},
+        {role:  "KFC Cook",color:attributeColorKfc(1)},
+        {role:"KFC Cashier",color:attributeColorKfc(2)}
+      ];
+
+
+const numColumns = 3;
+const legendRows = Math.ceil(legendData.length / numColumns);
+const legendContainerDivs = legendContainer
+  .selectAll(".legend-column")
+  .data(d3.range(numColumns))
+  .enter()
+  .append("div")
+  .attr("class", "legend-column")
+
+
+  legendContainerDivs
+  .selectAll(".legend-item")
+  .data((d, i) => legendData.slice(i * legendRows, (i + 1) * legendRows))
+  .enter()
+  .append("div")
+  .attr("class", "legend-item")
+  .style("margin-top", "10px")
+  .append("svg")
+  .attr("width", 200)
+  .attr("height", 20)
+  .append("g")
+  .attr("transform", "translate(0, 10)")
+  
+
+  .call((g) => {
+    g.append("rect")
+      .attr("x", 0)
+      .attr("y", -8)
+      .attr("width", 16)
+      .attr("height", 16)
+      .style("fill", (d) => d.color);
+
+    g.append("text")
+      .attr("x", 24)
+      .attr("y", 10)
+      .text((d) => d.role);
+  });
+
+
+     
+
+
+
+
+      const attributeScale = d3.scaleLinear().range([barChartHeight, 0]);
 
       const barChart = barChartSvg.append("g").attr("transform", `translate(50, 50)`);
 
-      d3.json(url).then(function (json) {
-        // Add a light gray background color to the map
-        svg
-          .append("rect")
-          .attr("width", "100%")
-          .attr("height", "100%")
-          .attr("fill", "lightgray");
-
-        svg
-          .selectAll("path")
-          .data(json.features)
-          .enter()
-          .append("path")
-          .attr("d", path)
-          .attr("fill", function (d) {
-            const density = d.properties.density;
-            return colorScale(density);
-          })
-          .attr("stroke", "white") // Set stroke color to white for state lines
-          .attr("data-state", function (d) {
-            return d.properties.name;
-          })
-          .on("click", function (event, d) {
-            const clickedState = d3.select(this);
-            const currentState = clickedState.attr("data-state");
-
-            if (selectedStates.includes(currentState)) {
-              // If state is already selected, remove it from the array
-              selectedStates.splice(selectedStates.indexOf(currentState), 1);
-            } else {
-              // If state is not selected, add it to the array
-              selectedStates.push(currentState);
-            }
-
-            svg
-              .selectAll("path")
-              .attr("fill", function (d) {
-                const density = d.properties.density;
-                return selectedStates.includes(d.properties.name) ? colorScale(density) : "gray";
-              });
-
-            updateBarChart(selectedStates, json);
-          });
-      });
-
       const selectedStates = [];
-      function updateBarChart(selectedStates, json) {
-  // Check if there are no selected states
-  if (selectedStates.length === 0) {
-    // Remove the bar chart elements
-    barChart.selectAll("rect").remove();
-    barChartSvg.select(".x-axis").remove();
-    barChartSvg.select(".y-axis").remove();
-    barChartSvg.selectAll(".state-name").remove();
-    barChartSvg.selectAll(".density-value").remove();
-    return; // Exit the function
-  }
 
-  // Filter the data to include only the selected states
-  const selectedData = json.features.filter(function (d) {
-    return selectedStates.includes(d.properties.name);
+
+      const svg = d3.select("#map");
+const colorScale = d3
+  .scaleLinear()
+  .domain([0, 200])
+  .range(["#CDB4DB", "#4B0082"]);
+
+d3.json(url).then(function (json) {
+  svg
+    .append("rect")
+    .attr("width", "100%")
+    .attr("height", "100%")
+    .attr("fill", "lightgray");
+
+  svg
+    .selectAll("path")
+    .data(json.features)
+    .enter()
+    .append("path")
+    .attr("d", path)
+    .attr("fill", function (d) {
+      const tacobellRestaurants = d.properties.tacobellrestaurants;
+      return colorScale(tacobellRestaurants);
+    })
+    .attr("stroke", "white")
+    .attr("data-state", function (d) {
+      return d.properties.name;
+    })
+    .on("mouseover", function (event, d) {
+      const hoveredState = d3.select(this);
+      const stateName = d.properties.name;
+      const tacobellRestaurants = d.properties.tacobellrestaurants;
+
+      svg
+        .append("text")
+        .attr("class", "state-label")
+        .attr("x", event.clientX)
+        .attr("y", event.clientY)
+        .attr("fill", "white") // Set the fill color to white
+        .text(stateName + ": " + tacobellRestaurants + " restaurants");
+    })
+    .on("mouseout", function (event, d) {
+      svg.selectAll(".state-label").remove();
+    })
+    .on("click", function (event, d) {
+      const clickedState = d3.select(this);
+      const currentState = clickedState.attr("data-state");
+
+      if (selectedStates.includes(currentState)) {
+        selectedStates.splice(selectedStates.indexOf(currentState), 1);
+      } else {
+        selectedStates.push(currentState);
+      }
+
+      svg
+        .selectAll("path")
+        .attr("fill", function (d) {
+          const tacobellRestaurants = d.properties.tacobellrestaurants;
+          return selectedStates.includes(d.properties.name) ? colorScale(tacobellRestaurants) : "gray";
+        });
+
+      updateBarChart(selectedStates, json,["Taco Bell","Manager","Cook","Cashier"]);
+    });
+});
+
+
+
+
+
+
+const svgBurger = d3.select("#burgermap");
+const BurgercolorScale = d3
+  .scaleLinear()
+  .domain([0, 200])
+  .range(["lightblue", "darkblue"]);
+
+d3.json(url).then(function (json) {
+  svgBurger
+    .append("rect")
+    .attr("width", "100%")
+    .attr("height", "100%")
+    .attr("fill", "lightgray");
+
+  svgBurger
+    .selectAll("path")
+    .data(json.features)
+    .enter()
+    .append("path")
+    .attr("d", path)
+    .attr("fill", function (d) {
+      const BurgerKingrestaurants = d.properties.BurgerKingRestaurants;
+      return BurgercolorScale(BurgerKingrestaurants);
+    })
+    .attr("stroke", "white")
+    .attr("data-state", function (d) {
+      return d.properties.name;
+    })
+    .on("mouseover", function (event, d) {
+      const hoveredState = d3.select(this);
+      const stateName = d.properties.name;
+      const BurgerKingrestaurants = d.properties.BurgerKingRestaurants;
+
+      svgBurger
+        .append("text")
+        .attr("class", "state-label")
+        .attr("x", event.clientX)
+        .attr("y", event.clientY)
+        .attr("fill", "white")
+        .text(stateName + ": " + BurgerKingrestaurants + " Burger King restaurants");
+    })
+    .on("mouseout", function (event, d) {
+      svgBurger.selectAll(".state-label").remove();
+    })
+    .on("click", function (event, d) {
+      const clickedState = d3.select(this);
+      const currentState = clickedState.attr("data-state");
+
+      if (selectedStates.includes(currentState)) {
+        selectedStates.splice(selectedStates.indexOf(currentState), 1);
+      } else {
+        selectedStates.push(currentState);
+      }
+
+      svgBurger
+        .selectAll("path")
+        .attr("fill", function (d) {
+          const BurgerKingrestaurants = d.properties.BurgerKingRestaurants;
+          return selectedStates.includes(d.properties.name) ? BurgercolorScale(BurgerKingrestaurants) : "gray";
+        });
+
+      updateBarChart(selectedStates, json,["Burger King","Manager","Cook","Cashier"]);
+    });
+});
+
+
+
+const svgKfc = d3.select("#kfcmap");
+const KFCcolorScale = d3
+  .scaleLinear()
+  .domain([0, 200])
+  .range(["#FFD2D2", "#800000"]);
+
+d3.json(url).then(function (json) {
+  svgKfc
+    .append("rect")
+    .attr("width", "100%")
+    .attr("height", "100%")
+    .attr("fill", "lightgray");
+
+  svgKfc
+    .selectAll("path")
+    .data(json.features)
+    .enter()
+    .append("path")
+    .attr("d", path)
+    .attr("fill", function (d) {
+      const kfcrestaurants = d.properties.kfcrestaurants;
+      return KFCcolorScale(kfcrestaurants);
+    })
+    .attr("stroke", "white")
+    .attr("data-state", function (d) {
+      return d.properties.name;
+    })
+    .on("mouseover", function (event, d) {
+      const hoveredState = d3.select(this);
+      const stateName = d.properties.name;
+      const kfcrestaurants = d.properties.kfcrestaurants;
+
+      svgKfc
+        .append("text")
+        .attr("class", "state-label")
+        .attr("x", event.clientX)
+        .attr("y", event.clientY)
+        .attr("fill", "white")
+        .text(stateName + ": " + kfcrestaurants + " KFC restaurants");
+    })
+    .on("mouseout", function (event, d) {
+      svgKfc.selectAll(".state-label").remove();
+    })
+    .on("click", function (event, d) {
+      const clickedState = d3.select(this);
+      const currentState = clickedState.attr("data-state");
+
+      if (selectedStates.includes(currentState)) {
+        selectedStates.splice(selectedStates.indexOf(currentState), 1);
+      } else {
+        selectedStates.push(currentState);
+      }
+
+      svgKfc
+        .selectAll("path")
+        .attr("fill", function (d) {
+          const kfcrestaurants = d.properties.kfcrestaurants;
+          return selectedStates.includes(d.properties.name) ? KFCcolorScale(kfcrestaurants) : "gray";
+        });
+
+      updateBarChart(selectedStates, json,["KFC","Manager","Cook","Cashier"]);
+    });
+});
+
+
+
+
+
+
+
+
+
+function removeBars() {
+  barChart.selectAll("rect").remove();
+  barChartSvg.selectAll(".x-axis").remove();
+  barChartSvg.selectAll(".y-axis").remove();
+  barChartSvg.selectAll(".state-name").remove();
+  barChartSvg.selectAll(".attribute-value").remove();
+}
+
+
+
+const dropdownButton = document.getElementById('dropdownButton');
+const dropdownMenu = document.getElementById('dropdownMenu');
+
+
+dropdownButton.addEventListener('click', function () {
+  dropdownMenu.classList.toggle('active');
+  removeBars();
+
+  
+});
+
+window.addEventListener('click', function (event) {
+  if (!dropdownButton.includes(event.target) && !dropdownMenu.includes(event.target)) {
+    dropdownMenu.classList.remove('active');
+  }
+  
+});
+var activeOption = 1; 
+
+  function optionClicked(option) {
+  
+    activeOption = option;
+
+  
+
+ 
+    var map = document.getElementById('map');
+    var burgerMap = document.getElementById('burgermap');
+    var kfcmap=document.getElementById('kfcmap')
+
+    map.style.display = 'none';
+    burgerMap.style.display = 'none';
+    kfcmap.style.display='none';
+
+    switch (option) {
+      case 1:
+        map.style.display = 'block';
+        break;
+      case 2:
+        burgerMap.style.display = 'block';
+        break;
+      case 3:
+      kfcmap.style.display='block';
+      break;
+    } }
+
+  window.addEventListener('DOMContentLoaded', function() {
+    optionClicked(activeOption);
   });
 
-  // Update the domain of the density scale based on the selected data
-  densityScale.domain([0, d3.max(selectedData, (d) => d.properties.density)]);
+  function  DrawManagerTacoBell(number, selectedData,offset,flag){
+    if(flag){
+    const barWidth = (barChartWidth - barPadding * 2) / (selectedData.length * number);
+    const managerBars = barChart.selectAll(".manager-bar").data(selectedData);
+    managerBars.exit().remove();
+    managerBars
+      .enter()
+      .append("rect")
+      .attr("class", "manager-bar")
+      .merge(managerBars)
+      .transition()
+      .duration(500)
+      .attr("x", (d, i) => (i * number + offset) * (barWidth + barPadding) + barPadding)
+      .attr("y", (d) => attributeScale(d.properties.ManagerTacoBell))
+      .attr("width", barWidth)
+      .attr("height", (d) => barChartHeight - attributeScale(d.properties.ManagerTacoBell))
+      .attr("fill", attributeColorScale(1));
+}}
 
-  // Bind the selected data to the bar chart bars
-  const bars = barChart.selectAll("rect").data(selectedData);
 
-  // Exit
-  bars.exit().remove();
 
-  // Enter + Update
-  bars.enter()
-    .append("rect")
-    .merge(bars)
-    .attr("x", (d, i) => i * (barChartWidth / selectedData.length))
-    .attr("y", (d) => densityScale(d.properties.density))
-    .attr("width", barChartWidth / selectedData.length - barPadding)
-    .attr("height", (d) => barChartHeight - densityScale(d.properties.density))
-    .attr("fill", "steelblue");
+function DrawCashierBarTacoBell(number,selectedData,offset,flag){
+ if(flag){
+  const barWidth = (barChartWidth - barPadding * 2) / (selectedData.length * number);
 
-  // Update the x-axis (state names)
+const cashierBars = barChart.selectAll(".cashier-bar").data(selectedData);
+cashierBars.exit().remove();
+
+
+cashierBars
+  .enter()
+  .append("rect")
+  .attr("class", "cashier-bar")
+  .merge(cashierBars)
+  .transition()
+  .duration(500)
+  .attr("x", (d, i) => (i * number+offset) * (barWidth + barPadding) + barPadding)
+  .attr("y", (d) => attributeScale(d.properties.CashierTacoBell))
+  .attr("width", barWidth)
+  .attr("height", (d) => barChartHeight - attributeScale(d.properties.CashierTacoBell))
+  .attr("fill", attributeColorScale(0));
+   }} 
+  function DrawKitchenMemberBarTacoBell(number, selectedData,offset,flag){
+    if(flag){
+    const barWidth = (barChartWidth - barPadding * 2) / (selectedData.length * number);
+
+   const kitchenBars = barChart.selectAll(".kitchen-bar").data(selectedData);
+
+kitchenBars.exit().remove();
+
+
+kitchenBars
+  .enter()
+  .append("rect")
+  .attr("class", "kitchen-bar")
+  .merge(kitchenBars)
+  .transition()
+  .duration(500)
+  .attr("x", (d, i) => (i * number + offset) * (barWidth + barPadding) + barPadding)
+  .attr("y", (d) => attributeScale(d.properties.KitchenMember))
+  .attr("width", barWidth)
+  .attr("height", (d) => barChartHeight - attributeScale(d.properties.KitchenMember))
+  .attr("fill", attributeColorScale(2));
+
+  }}
+  function DrawManagerBarBurgerKing(number,selectedData,offset,flag){
+    if(flag){
+    const barWidth = (barChartWidth - barPadding * 2) / (selectedData.length * number);
+
+const burgerManagerBars = barChart.selectAll(".burger-manager-bar").data(selectedData);
+
+burgerManagerBars.exit().remove();
+
+
+burgerManagerBars
+  .enter()
+  .append("rect")
+  .attr("class", "burger-manager-bar")
+  .merge(burgerManagerBars)
+  .transition()
+  .duration(500)
+  .attr("x", (d, i) => (i * number + offset) * (barWidth + barPadding) + barPadding)
+  .attr("y", (d) => attributeScale(d.properties.BurgerKingManager))
+  .attr("width", barWidth)
+  .attr("height", (d) => barChartHeight - attributeScale(d.properties.BurgerKingManager))
+  .attr("fill", attributeColorScaleBurgerKing(0));
+
+  }}
+  function DrawCookBarBurgerKing(number,selectedData,offset,flag){
+    if(flag){
+    const barWidth = (barChartWidth - barPadding * 2) / (selectedData.length * number);
+const cookBars = barChart.selectAll(".cook-bar").data(selectedData);
+cookBars.exit().remove();
+cookBars
+  .enter()
+  .append("rect")
+  .attr("class", "cook-bar")
+  .merge(cookBars)
+  .transition()
+  .duration(500)
+  .attr("x", (d, i) => (i * number + offset) * (barWidth + barPadding) + barPadding)
+  .attr("y", (d) => attributeScale(d.properties.CookBurgerKing))
+  .attr("width", barWidth)
+  .attr("height", (d) => barChartHeight - attributeScale(d.properties.CookBurgerKing))
+  .attr("fill", attributeColorScaleBurgerKing(1));
+
+  }}
+  function DrawCashierBarBurgerKing(number,selectedData,offset,flag){
+   
+   if(flag){
+    const barWidth = (barChartWidth - barPadding * 2) / (selectedData.length * number);
+const cashierBurgerBars = barChart.selectAll(".cashier-burger-bar").data(selectedData);
+
+cashierBurgerBars.exit().remove();
+cashierBurgerBars
+  .enter()
+  .append("rect")
+  .attr("class", "cashier-burger-bar")
+  .merge(cashierBurgerBars)
+  .transition()
+  .duration(500)
+  .attr("x", (d, i) => (i * number + offset) * (barWidth + barPadding) + barPadding)
+  .attr("y", (d) => attributeScale(d.properties.CashierBurgerKing))
+  .attr("width", barWidth)
+  .attr("height", (d) => barChartHeight - attributeScale(d.properties.CashierBurgerKing))
+  .attr("fill", attributeColorScaleBurgerKing(2));
+  }}
+function DrawManagerBarKFC(number,selectedData,offset,flag){
+
+  if(flag){
+      const barWidth = (barChartWidth - barPadding * 2) / (selectedData.length * number);
+
+
+
+
+const kfcManagerBars = barChart.selectAll(".kfc-manager-bar").data(selectedData);
+
+kfcManagerBars.exit().remove();
+
+kfcManagerBars
+.enter()
+.append("rect")
+.attr("class", "kfc-manager-bar")
+.merge(kfcManagerBars)
+.transition()
+.duration(500)
+.attr("x", (d, i) => (i * number + offset) * (barWidth + barPadding) + barPadding)
+.attr("y", (d) => attributeScale(d.properties.kfcmanager))
+.attr("width", barWidth)
+.attr("height", (d) => barChartHeight - attributeScale(d.properties.kfcmanager))
+.attr("fill", attributeColorKfc(0));
+
+  }}
+
+
+function DrawCookKFC(number,selectedData,offset,flag){
+
+  if(flag){
+
+  
+  const barWidth = (barChartWidth - barPadding * 2) / (selectedData.length * number);
+
+const kfcCookBars = barChart.selectAll(".kfc-cook-bar").data(selectedData);
+
+kfcCookBars.exit().remove();
+
+
+kfcCookBars
+  .enter()
+  .append("rect")
+  .attr("class", "kfc-cook-bar")
+  .merge(kfcCookBars)
+  .transition()
+  .duration(500)
+  .attr("x", (d, i) => (i * number + offset) * (barWidth + barPadding) + barPadding)
+  .attr("y", (d) => attributeScale(d.properties.kfccook))
+  .attr("width", barWidth)
+  .attr("height", (d) => barChartHeight - attributeScale(d.properties.kfccook))
+  .attr("fill", attributeColorKfc(1));
+
+}}
+function DrawCashierBarKFC(number,selectedData,offset,flag){
+  if(flag){
+  const barWidth = (barChartWidth - barPadding * 2) / (selectedData.length * number);
+
+const kfcCashierBars = barChart.selectAll(".kfc-cashier-bar").data(selectedData);
+
+kfcCashierBars.exit().remove();
+
+
+kfcCashierBars
+  .enter()
+  .append("rect")
+  .attr("class", "kfc-cashier-bar")
+  .merge(kfcCashierBars)
+  .transition()
+  .duration(500)
+  .attr("x", (d, i) => (i * number + offset) * (barWidth + barPadding) + barPadding)
+  .attr("y", (d) => attributeScale(d.properties.kfccashier))
+  .attr("width", barWidth)
+  .attr("height", (d) => barChartHeight - attributeScale(d.properties.kfccashier))
+  .attr("fill", attributeColorKfc(2));
+}}
+
+
+function DrawAxis(selectedData){
+
   const xScale = d3
     .scaleBand()
     .domain(selectedData.map((d) => d.properties.name))
-    .range([0, barChartWidth])
+    .range([0, barChartWidth + 10])
     .padding(0.1);
 
-  // Update the x-axis (state names)
+
   const xAxis = d3.axisBottom(xScale);
   barChartSvg.select(".x-axis").remove();
   barChartSvg
     .append("g")
     .attr("class", "x-axis")
-    .attr("transform", `translate(50, ${barChartHeight + 50})`)
+    .attr("transform", `translate(50, ${barChartHeight + 55})`)
     .call(xAxis)
     .selectAll("text")
     .attr("text-anchor", "end")
-    .attr("dx", "-.8em")
-    .attr("dy", ".15em")
-    .attr("transform", "rotate(-45)");
+    .attr("dx", "-.34em")
+    .attr("dy", ".5em")
+    .attr("transform", "rotate(-45)")
+    .attr("font-size", "20px");
 
-  // Update the y-axis (density values)
-  const yAxis = d3.axisLeft(densityScale).ticks(5);
+    const yAxis = d3.axisLeft(attributeScale).ticks(5);
   barChartSvg.select(".y-axis").remove();
   barChartSvg
     .append("g")
     .attr("class", "y-axis")
     .attr("transform", `translate(50, 50)`)
-    .call(yAxis);
+    .call(yAxis)
+    .append("text")
+    .attr("x", -40)
+    .attr("y", -20)
+    .attr("dy", "0.71em")
+    .attr("text-anchor", "start")
+    .attr("font-size", "20px")
+    .attr("fill", "black")
+    .text("Salary per hour"); 
 
-  // Remove the state names
+
   barChartSvg.selectAll(".state-name").remove();
+}
 
-  // Create a group for the density values
-  const densityValues = barChartSvg.selectAll(".density-value").data(selectedData, (d) => d.properties.name);
-  densityValues.exit().remove();
+var selectedOptions = [];
 
-  densityValues
-  .enter()
-  .append("text")
-  .merge(densityValues)
-  .attr("class", "density-value")
-  .attr("x", (d, i) => i * (barChartWidth / selectedData.length) + (barChartWidth / selectedData.length) / 2+ 50)
-  .attr("y", (d) => densityScale(d.properties.density) +40) // Adjust the vertical position
-  .text((d) => d.properties.density)
-  .attr("fill", "black")
-  .attr("font-size", "10px")
-  .attr("text-anchor", "middle")
+function handleCheckboxSelection() {
+  selectedOptions = [];
+
+  d3.selectAll(".checkbox")
+    .each(function() {
+      var checkbox = d3.select(this);
+      var option = checkbox.property("value");
+
+      if (checkbox.property("checked")) {
+        selectedOptions.push(option);
+      }
+    });
+
+
+
+  d3.json(url).then(function(json) {
+    updateBarChart(selectedStates, json, selectedOptions);
+  });
+}
+
+
+
+
+function createCheckboxMenu() {
+  var options = ["Taco Bell", "Burger King", "KFC", "Manager", "Cook", "Cashier"];
+
+  d3.select("#checkbox-container")
+    .selectAll(".checkbox")
+    .data(options)
+    .enter()
+    .append("label")
+    .text(function(d) {
+      return d;
+    })
+    .append("input")
+    .attr("type", "checkbox")
+    .attr("class", "checkbox")
+    .attr("value", function(d) {
+      return d;
+    })
+    .on("change", handleCheckboxSelection);
+}
+
+createCheckboxMenu();
+
+
+function updateBarChart(selectedStates, json,selectedOptions) {
+  barChart.selectAll("rect").remove();
+  if (selectedStates.length === 0) {
+    removeBars();
+
+
+    svg
+      .selectAll("path")
+      .attr("fill", function (d) {
+        const density = d.properties.tacobellrestaurants;
+        return colorScale(density);
+      });
+    svgBurger
+      .selectAll("path")
+      .attr("fill", function (d) {
+        const density = d.properties.BurgerKingRestaurants;
+        return BurgercolorScale(density);
+      });
+  
+    svgKfc
+      .selectAll("path")
+      .attr("fill", function (d) {
+        const density = d.properties.BurgerKingRestaurants;
+        return KFCcolorScale(density);
+      });
+
+    return;
+  }
+
+  const selectedData = json.features.filter(function (d) {
+    return selectedStates.includes(d.properties.name);
+  });
+
+attributeScale.domain([
+  0,
+  d3.max(selectedData, (d) =>
+    Math.max(
+      d.properties.CashierTacoBell,
+      d.properties.ManagerTacoBell,
+      d.properties.KitchenMember,
+      d.properties.BurgerKingManager,
+      d.properties.CookBurgerKing,
+      d.properties.CashierBurgerKing,
+      d.properties.kfcmanager,
+      d.properties.kfccook,
+      d.properties.kfccashier
+    )
+  ),
+]);
+
+
+  const bars = barChart.selectAll("rect").data(selectedData);
+
+
+  bars.exit().remove();
+  let offset=0;
+  let number=0;
+  let   selectedBars=[];
+ if(selectedOptions.includes("Taco Bell")){
+  if(selectedOptions.includes("Manager")){
+    number++;
+    selectedBars.push("TacoBellManager");
+  }
+  if(selectedOptions.includes("Cook")){
+    number++;
+    selectedBars.push("TacoBellCook");
+  }
+  if(selectedOptions.includes("Cashier")){
+    number++;
+    selectedBars.push("TacoBellCashier");
+  }
+ }
+ if(selectedOptions.includes("Burger King")){
+  if(selectedOptions.includes("Manager")){
+    number++;
+    selectedBars.push("BurgerKingManager");
+  }
+  if(selectedOptions.includes("Cook")){
+    number++;
+    selectedBars.push("BurgerKingCook");
+  }
+  if(selectedOptions.includes("Cashier")){
+    number++;
+    selectedBars.push("BurgerKingCashier");
+  }
+ }
+ if(selectedOptions.includes("KFC")){
+  if(selectedOptions.includes("Manager")){
+    number++;
+    selectedBars.push("KFCManager");
+  }
+  if(selectedOptions.includes("Cook")){
+    number++;
+    selectedBars.push("KFCCook");
+  }
+  if(selectedOptions.includes("Cashier")){
+    number++;
+    selectedBars.push("KFCCashier");
+  }
+ }
+while(selectedBars.length>0){
+var poppedValue = selectedBars.pop();
+
+if (poppedValue === "TacoBellManager") {
+  DrawManagerTacoBell(number,selectedData,offset,true);
+  offset++;
+}else if (poppedValue === "TacoBellCook") {
+  DrawKitchenMemberBarTacoBell(number,selectedData,offset,true);
+  offset++; 
+} else if (poppedValue === "TacoBellCashier") {
+  DrawCashierBarTacoBell(number,selectedData,offset,true);
+  offset++; 
+} else if (poppedValue === "BurgerKingManager") {
+  DrawManagerBarBurgerKing(number,selectedData,offset,true);
+  offset++;
+}else if (poppedValue === "BurgerKingCook") {
+  DrawCookBarBurgerKing(number,selectedData,offset,true);
+  offset++; 
+} else if (poppedValue === "BurgerKingCashier") {
+  DrawCashierBarBurgerKing(number,selectedData,offset,true);
+  offset++; 
+}
+else if (poppedValue === "KFCManager") {
+  DrawManagerBarKFC(number,selectedData,offset,true);
+  offset++;
+}else if (poppedValue === "KFCCook") {
+  DrawCookKFC(number,selectedData,offset,true);
+  offset++; 
+} else if (poppedValue === "KFCCashier") {
+  DrawCashierBarKFC(number,selectedData,offset,true);
+  offset++; 
+}
+
+
+
+}
+  DrawAxis(selectedData);
  
 
-
-
-      }
+}
+      
     </script>
   </body>
 </html>
